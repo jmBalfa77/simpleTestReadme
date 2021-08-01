@@ -1,34 +1,76 @@
 var sign = require('jsonwebtoken').sign;
 var { URL } = require('url');
+const express = require('express')
+const fetch = require('node-fetch');
+const app = express()
 
-// POST request to the login form
-// This should do all of the work to login and verify the user is valid
-module.exports = (req, res) => {
-  var { email, password } = req.body;
 
-  console.log('Use these credentials to log the user in somewhere:', { email, password });
+async function getvals(username, password) {
+    const url = 'https://elastic.messangi.me/kingslanding/login';
 
-  // Validate email and password is a correct user, and get the user information
+    const dataString = { username: username, password: password};
 
-  // User being logged into ReadMe
-  // At this point we're hardcoding in a user's name to mock sending in a valid user
-  var user = {
-    name: email,
-    email: email,
-    
-    // User's API Key (OR) { user, pass }
-    apiKey: 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJqbXJlbmRvbkBtZXNzYW5naS5jb20iLCJhdXRob3JpdGllcyI6eyJsb2dpbiI6IjEifSwiZXhwIjoxNjI2MDI4NDY1fQ.z-ZrkI_JYhgSxrsG9RO9odXBJyWLCSryNrWfi4Xp7LXXfX9xd3oLfbcnWOWw9rcCpV-h2-TBCapbCtetUEw34A',
-    
-    version: 1, // Required, if omited things can break unexpectedly
+    const options = {
+        method: 'POST',
+        headers: {Accept: 'application/json', 'Content-Type': 'application/json'},
+        body: JSON.stringify(dataString)
+    };
 
-    // You can pass in any information here and use it in your documentation!
-    // Full list of data that has special meaning in our API Explorer: https://docs.readme.com/docs/passing-data-to-jwt
-  };
+    return await fetch(url, options)
+        .then( res => {
+            //console.log(res);
 
-  var jwt = sign(user, process.env.JWT_SECRET);
-  var url = new URL(process.env.HUB_URL);
-  url.searchParams.set('auth_token', jwt);
-  console.log('Redirecting to: ', url.toString());
+            const codigos = res.status;
+            //console.log(codigos);
 
-  return res.redirect(url);
+            if (codigos != 403) {
+
+                const r = res.headers.get('authorization').substring(7);
+                //console.log(r);
+                return r;
+            }
+            else
+            {
+                return "error";
+            }
+
+        });
 }
+
+
+    module.exports = (req, res) => {
+
+        (async function () {
+            //console.log("req",req);
+            //console.log("res",res);
+            var {email, password} = req.body;
+            const username = email; 
+          
+            //const bearer = await login(username, password);
+            //var bearer = "";
+            // do {
+
+            bearer = await getvals(username, password)
+            //}while(bearer == "error");
+
+            if (bearer != "error") {
+                const user = {name: username, email: username, apiKey: bearer, version: 1};
+                const jwt = sign(user, process.env.JWT_SECRET);
+                const url = new URL(process.env.HUB_URL);
+                url.searchParams.set('auth_token', jwt);
+                console.log('Redirecting to: ', url.toString());
+
+                return res.redirect(url);
+            } else {
+
+                //res.redirect("http://localhost:3000/");
+                return res.redirect(req.headers.origin);
+
+            }
+        })();
+    }
+
+
+//origin: 'http://localhost:3000'
+
+
